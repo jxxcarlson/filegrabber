@@ -1,12 +1,14 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, text, pre)
-import Html.Events exposing (onClick)
+import Html exposing (Html, button, input, div, text, pre, h1)
+import Html.Events exposing (onClick, onInput)
 import Bytes exposing (..)
 import Http
+import Html.Attributes exposing (style, value, placeholder)
 import FileGrabber
 import File.Download as Download
+import Filename
 
 
 main : Program () Model Msg
@@ -31,6 +33,7 @@ init _ =
 
 type alias Model =
     { status : String
+    , url : String
     , maybeBytes : Maybe Bytes
     }
 
@@ -38,6 +41,7 @@ type alias Model =
 initialModel : Model
 initialModel =
     { status = "Starting up"
+    , url = imageUrl
     , maybeBytes = Nothing
     }
 
@@ -47,26 +51,32 @@ imageUrl =
 
 
 type Msg
-    = GetData
+    = AcceptUrl String
+    | GetData
     | GotData (Result Http.Error Bytes)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        AcceptUrl str ->
+            ( { model | url = str }, Cmd.none )
+
         GetData ->
-            ( model, getData imageUrl )
+            ( model, getData model.url )
 
         GotData result ->
             case result of
                 Ok data ->
-                    ( { model
-                        | status =
-                            "Bytes received = " ++ (String.fromInt (Bytes.width data))
-                        , maybeBytes = Just data
-                      }
-                    , saveData data
-                    )
+                    let
+                        newModel =
+                            { model
+                                | status =
+                                    "Bytes received = " ++ (String.fromInt (Bytes.width data))
+                                , maybeBytes = Just data
+                            }
+                    in
+                        ( newModel, saveData newModel )
 
                 Err _ ->
                     ( { model | status = "Invalid data" }, Cmd.none )
@@ -74,10 +84,42 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ button [ onClick GetData ] [ text "Get image" ]
+    div outerStyle
+        [ h1 [ style "font-size" "20px", style "margin-bottom" "20px" ] [ text "Image grabber" ]
+        , input (inputAttributes model) []
+        , button buttonAttributes [ text "Get image" ]
         , pre [] [ text <| "status: " ++ model.status ]
         ]
+
+
+outerStyle =
+    [ style "margin" "40px"
+    , style "padding" "20px"
+    , style "background-color" "#eee"
+    , style "width" "600px"
+    , style "font-size" "14px"
+    ]
+
+
+inputAttributes model =
+    [ placeholder "Image url"
+    , value model.url
+    , onInput AcceptUrl
+    , style "width" "580px"
+    , style "display" "block"
+    , style "font-size" "14px"
+    , style "margin-bottom" "20px"
+    ]
+
+
+buttonAttributes =
+    [ onClick GetData
+    , style "background-color" "#444"
+    , style "color" "#eee"
+    , style "height" "30px"
+    , style "font-size" "14px"
+    , style "margin-bottom" "12px"
+    ]
 
 
 getData : String -> Cmd Msg
@@ -88,6 +130,18 @@ getData url =
         }
 
 
-saveData : Bytes -> Cmd msg
-saveData bytes =
-    Download.bytes ("test.png") "image/png" bytes
+saveData : Model -> Cmd msg
+saveData model =
+    let
+        maybeFilename =
+            Filename.fromUrl model.url
+
+        maybeMimeType =
+            Filename.mimeType model.url
+    in
+        case ( maybeFilename, maybeMimeType, model.maybeBytes ) of
+            ( Just filename, Just mimeType, Just bytes ) ->
+                Download.bytes filename mimeType bytes
+
+            ( _, _, _ ) ->
+                Cmd.none

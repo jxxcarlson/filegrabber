@@ -1,5 +1,6 @@
 # ImageGrabber
 
-ImageGrabber shows how to grab an image from  URL,
+ImageGrabber:  grab an image from  URL,
 transform the received data into a `Bytes` value,
-and disply the `Bytes.width` of that value.
+disply the `Bytes.width` of that value, and download
+the image to disk.
