@@ -53,7 +53,7 @@ imageUrl =
 type Msg
     = AcceptUrl String
     | GetData
-    | GotData (Result Http.Error Bytes)
+    | GotData String (Result Http.Error Bytes)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -65,14 +65,17 @@ update msg model =
         GetData ->
             ( model, getData model.url )
 
-        GotData result ->
+        GotData url result ->
             case result of
                 Ok data ->
                     let
+                        filename =
+                            Filename.fromUrl url |> Maybe.withDefault "---"
+
                         newModel =
                             { model
                                 | status =
-                                    "Bytes received = " ++ (String.fromInt (Bytes.width data))
+                                    "Bytes received for " ++ String.left 10 filename ++ " = " ++ (String.fromInt (Bytes.width data))
                                 , maybeBytes = Just data
                             }
                     in
@@ -126,7 +129,7 @@ getData : String -> Cmd Msg
 getData url =
     Http.get
         { url = url
-        , expect = FileGrabber.expectBytes GotData
+        , expect = FileGrabber.expectBytes (GotData url)
         }
 
 
