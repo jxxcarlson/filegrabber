@@ -35,20 +35,16 @@ init _ =
 
 type alias Model =
     { status : String
-    , url : String
     , urlList : List String
     , dataList : List ( FileRecord, Data )
-    , maybeBytes : Maybe Bytes
     }
 
 
 initialModel : Model
 initialModel =
     { status = "Starting up"
-    , url = imageUrl
     , urlList = [ imageUrl1, imageUrl2 ]
     , dataList = []
-    , maybeBytes = Nothing
     }
 
 
@@ -69,18 +65,13 @@ urlList =
 
 
 type Msg
-    = AcceptUrl String
-    | GetData
+    = GetData
     | GotData String (Result Http.Error Bytes)
-    | Finish
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        AcceptUrl str ->
-            ( { model | url = str }, Cmd.none )
-
         GetData ->
             let
                 maybeUrl =
@@ -120,7 +111,6 @@ update msg model =
                                 | status =
                                     --"Bytes received for " ++ String.left 10 filename ++ " = " ++ (String.fromInt (Bytes.width data))
                                     "Data items: " ++ String.fromInt (List.length newDataList)
-                                , maybeBytes = Just data
                                 , dataList = newDataList
                                 , urlList = nextUrlList
                             }
@@ -142,15 +132,11 @@ update msg model =
                 Err _ ->
                     ( { model | status = "Invalid data" }, Cmd.none )
 
-        Finish ->
-            ( { model | status = "Processed: " ++ String.fromInt (List.length model.dataList) }, Cmd.none )
-
 
 view : Model -> Html Msg
 view model =
     div outerStyle
         [ h1 [ style "font-size" "20px", style "margin-bottom" "20px" ] [ text "Image grabber" ]
-        , input (inputAttributes model) []
         , button buttonAttributes [ text "Get image" ]
         , pre [] [ text <| "status: " ++ model.status ]
         ]
@@ -162,17 +148,6 @@ outerStyle =
     , style "background-color" "#eee"
     , style "width" "600px"
     , style "font-size" "14px"
-    ]
-
-
-inputAttributes model =
-    [ placeholder "Image url"
-    , value model.url
-    , onInput AcceptUrl
-    , style "width" "580px"
-    , style "display" "block"
-    , style "font-size" "14px"
-    , style "margin-bottom" "20px"
     ]
 
 
@@ -192,20 +167,3 @@ getData url =
         { url = url
         , expect = FileGrabber.expectBytes (GotData url)
         }
-
-
-saveData : Model -> Cmd msg
-saveData model =
-    let
-        maybeFilename =
-            Filename.fromUrl model.url
-
-        maybeMimeType =
-            Filename.mimeType model.url
-    in
-        case ( maybeFilename, maybeMimeType, model.maybeBytes ) of
-            ( Just filename, Just mimeType, Just bytes ) ->
-                Download.bytes filename mimeType bytes
-
-            ( _, _, _ ) ->
-                Cmd.none
