@@ -18,14 +18,22 @@ parseBody =
             |. chompWhile (\c -> c /= '?')
 
 
-fromUrl : String -> Maybe String
-fromUrl url =
+pathFromUrl : String -> Maybe String
+pathFromUrl url =
     case run parse url of
         Ok filename ->
             Just filename
 
         Err _ ->
             Nothing
+
+
+fromUrl : String -> Maybe String
+fromUrl url =
+    pathFromUrl url
+        |> Maybe.map (String.split "/")
+        |> Maybe.map List.reverse
+        |> Maybe.andThen List.head
 
 
 {-| Filename.extension "<http://foo.a.jpg"> == Just "jpg" : Maybe String
