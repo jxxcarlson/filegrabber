@@ -104,16 +104,6 @@ update msg model =
                     ( { model | status = "Invalid data" }, Cmd.none )
 
 
-
--- downloadTarArchiveCmd : Model -> Cmd msg
--- downloadTarArchiveCmd model =
---     let
---         archive =
---             Tar.encodeFiles (List.map ImageGrabber.prepareData model.dataList) |> encode
---     in
---         ImageGrabber.saveBytes "archive" archive
-
-
 getDataFromList : Model -> Cmd Msg
 getDataFromList model =
     case List.head model.urlList of
