@@ -5,6 +5,7 @@ import Bytes.Decode exposing (Decoder)
 import Http
 import Parser exposing (..)
 import Dict exposing (Dict)
+import Task exposing (Task)
 
 
 expectBytes : (Result Http.Error Bytes -> msg) -> Http.Expect msg
