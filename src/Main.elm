@@ -4,7 +4,6 @@ import Browser
 import Html exposing (Html, button, input, div, text, pre, h1)
 import Html.Events exposing (onClick, onInput)
 import Bytes exposing (..)
-import Bytes.Encode exposing (encode)
 import Http
 import Html.Attributes exposing (style, value, placeholder)
 import ImageGrabber
@@ -67,37 +66,6 @@ type Msg
     | GotData (Result Http.Error Bytes)
 
 
-getImageTask : String -> Task Http.Error Bytes
-getImageTask url_ =
-    Http.task
-        { method = "get"
-        , headers = []
-        , url = url_
-        , body = Http.emptyBody
-        , resolver = Http.bytesResolver bytesResponse
-        , timeout = Nothing
-        }
-
-
-bytesResponse : Http.Response Bytes -> Result Http.Error Bytes
-bytesResponse response =
-    case response of
-        Http.BadUrl_ url ->
-            Err (Http.BadUrl url)
-
-        Http.Timeout_ ->
-            Err Http.Timeout
-
-        Http.NetworkError_ ->
-            Err Http.NetworkError
-
-        Http.BadStatus_ metadata body ->
-            Err (Http.BadStatus metadata.statusCode)
-
-        Http.GoodStatus_ metadata body ->
-            Ok body
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -136,30 +104,21 @@ update msg model =
                     ( { model | status = "Invalid data" }, Cmd.none )
 
 
-downloadTarArchiveCmd : Model -> Cmd Msg
-downloadTarArchiveCmd model =
-    let
-        archive =
-            Tar.encodeFiles (List.map prepareData model.dataList) |> encode
-    in
-        saveBytes "archive" archive
 
-
-prepareData : ( String, Bytes ) -> ( FileRecord, Data )
-prepareData ( url, bytes ) =
-    case ImageGrabber.filenameFromUrl url of
-        Nothing ->
-            ( defaultFileRecord, BinaryData bytes )
-
-        Just filename ->
-            ( { defaultFileRecord | filename = filename }, BinaryData bytes )
+-- downloadTarArchiveCmd : Model -> Cmd msg
+-- downloadTarArchiveCmd model =
+--     let
+--         archive =
+--             Tar.encodeFiles (List.map ImageGrabber.prepareData model.dataList) |> encode
+--     in
+--         ImageGrabber.saveBytes "archive" archive
 
 
 getDataFromList : Model -> Cmd Msg
 getDataFromList model =
     case List.head model.urlList of
         Nothing ->
-            downloadTarArchiveCmd model
+            ImageGrabber.downloadTarArchiveCmd model.dataList
 
         Just url ->
             getData url
@@ -167,12 +126,7 @@ getDataFromList model =
 
 getData : String -> Cmd Msg
 getData url_ =
-    Task.attempt GotData (getImageTask url_)
-
-
-saveBytes : String -> Bytes -> Cmd msg
-saveBytes archiveName bytes =
-    Download.bytes (archiveName ++ ".tar") "application/x-tar" bytes
+    Task.attempt GotData (ImageGrabber.getImageTask url_)
 
 
 
