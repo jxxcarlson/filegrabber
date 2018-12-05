@@ -6,9 +6,8 @@ import Html.Events exposing (onClick, onInput)
 import Bytes exposing (..)
 import Http
 import Html.Attributes exposing (style, value, placeholder)
-import FileGrabber
+import ImageGrabber
 import File.Download as Download
-import Filename
 
 
 main : Program () Model Msg
@@ -126,7 +125,7 @@ getData : String -> Cmd Msg
 getData url =
     Http.get
         { url = url
-        , expect = FileGrabber.expectBytes GotData
+        , expect = ImageGrabber.expectBytes GotData
         }
 
 
@@ -134,10 +133,10 @@ saveData : Model -> Cmd msg
 saveData model =
     let
         maybeFilename =
-            Filename.fromUrl model.url
+            ImageGrabber.fromUrl model.url
 
         maybeMimeType =
-            Filename.mimeType model.url
+            ImageGrabber.mimeType model.url
     in
         case ( maybeFilename, maybeMimeType, model.maybeBytes ) of
             ( Just filename, Just mimeType, Just bytes ) ->

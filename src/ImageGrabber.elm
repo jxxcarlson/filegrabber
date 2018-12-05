@@ -1,7 +1,37 @@
-module Filename exposing (fromUrl, extension, mimeType)
+module ImageGrabber exposing (expectBytes, fromUrl, extension, mimeType)
 
+import Bytes exposing (Bytes)
+import Bytes.Decode exposing (Decoder)
+import Http
 import Parser exposing (..)
 import Dict exposing (Dict)
+
+
+expectBytes : (Result Http.Error Bytes -> msg) -> Http.Expect msg
+expectBytes toMsg =
+    Http.expectBytesResponse toMsg <|
+        \response ->
+            case response of
+                Http.BadUrl_ url ->
+                    Err (Http.BadUrl url)
+
+                Http.Timeout_ ->
+                    Err Http.Timeout
+
+                Http.NetworkError_ ->
+                    Err Http.NetworkError
+
+                Http.BadStatus_ metadata body ->
+                    Err (Http.BadStatus metadata.statusCode)
+
+                Http.GoodStatus_ metadata body ->
+                    Ok body
+
+
+
+--
+-- FIlENAME PARSER
+--
 
 
 parse : Parser String
