@@ -1,4 +1,4 @@
-module ImageGrabber exposing (expectBytes, fromUrl, extension, mimeType)
+module ImageGrabber exposing (expectBytes, filenameFromUrl, extension, mimeType)
 
 import Bytes exposing (Bytes)
 import Bytes.Decode exposing (Decoder)
@@ -49,8 +49,8 @@ parseBody =
             |. chompWhile (\c -> c /= '?')
 
 
-fromUrl : String -> Maybe String
-fromUrl url =
+filenameFromUrl : String -> Maybe String
+filenameFromUrl url =
     case run parse url of
         Ok filename ->
             Just filename
@@ -65,7 +65,7 @@ Filename.extension "<http://foo"> == Nothing
 extension : String -> Maybe String
 extension str =
     str
-        |> fromUrl
+        |> filenameFromUrl
         |> Maybe.map (String.split ".")
         |> Maybe.map List.reverse
         |> Maybe.andThen filter

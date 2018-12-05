@@ -4,12 +4,14 @@ import Browser
 import Html exposing (Html, button, input, div, text, pre, h1)
 import Html.Events exposing (onClick, onInput)
 import Bytes exposing (..)
+import Bytes.Encode exposing (encode)
 import Http
 import Html.Attributes exposing (style, value, placeholder)
 import ImageGrabber
 import File.Download as Download
 import Task exposing (Task)
 import Json.Encode as Encode
+import Tar exposing (Data(..), FileRecord, defaultFileRecord)
 
 
 main : Program () Model Msg
@@ -108,38 +110,75 @@ update msg model =
                     ( model, Cmd.none )
 
                 Just url ->
-                    ( { model | url = url }, getDataFromList model.urlList )
+                    ( { model | url = url }, getDataFromList model )
 
         GotData result ->
             case result of
                 Ok data ->
-                    let
-                        url =
-                            List.head model.urlList |> Maybe.withDefault "empty"
+                    case List.head model.urlList of
+                        Nothing ->
+                            ( model, Cmd.none )
 
-                        newModel =
-                            { model
-                                | status =
-                                    "Bytes received = " ++ (String.fromInt (Bytes.width data))
-                                , maybeBytes = Just data
-                                , urlList = List.drop 1 model.urlList
-                                , dataList = ( url, data ) :: model.dataList
-                            }
-                    in
-                        ( newModel, Cmd.batch [ saveData url data, getDataFromList newModel.urlList ] )
+                        Just url ->
+                            let
+                                newModel =
+                                    { model
+                                        | status =
+                                            "Bytes received = " ++ (String.fromInt (Bytes.width data))
+                                        , maybeBytes = Just data
+                                        , urlList = List.drop 1 model.urlList
+                                        , dataList = ( url, data ) :: model.dataList
+                                    }
+                            in
+                                ( newModel, getDataFromList newModel )
 
                 Err _ ->
                     ( { model | status = "Invalid data" }, Cmd.none )
 
 
-getDataFromList : List String -> Cmd Msg
-getDataFromList urlList =
-    case List.head urlList of
+downloadTarArchiveCmd : Model -> Cmd Msg
+downloadTarArchiveCmd model =
+    let
+        archive =
+            Tar.encodeFiles (List.map prepareData model.dataList) |> encode
+    in
+        saveBytes "archive" archive
+
+
+prepareData : ( String, Bytes ) -> ( FileRecord, Data )
+prepareData ( url, bytes ) =
+    case ImageGrabber.filenameFromUrl url of
         Nothing ->
-            Cmd.none
+            ( defaultFileRecord, BinaryData bytes )
+
+        Just filename ->
+            ( { defaultFileRecord | filename = filename }, BinaryData bytes )
+
+
+getDataFromList : Model -> Cmd Msg
+getDataFromList model =
+    case List.head model.urlList of
+        Nothing ->
+            downloadTarArchiveCmd model
 
         Just url ->
             getData url
+
+
+getData : String -> Cmd Msg
+getData url_ =
+    Task.attempt GotData (getImageTask url_)
+
+
+saveBytes : String -> Bytes -> Cmd msg
+saveBytes archiveName bytes =
+    Download.bytes (archiveName ++ ".tar") "application/x-tar" bytes
+
+
+
+--
+-- VIEW
+--
 
 
 view : Model -> Html Msg
@@ -180,25 +219,3 @@ buttonAttributes =
     , style "font-size" "14px"
     , style "margin-bottom" "12px"
     ]
-
-
-getData : String -> Cmd Msg
-getData url_ =
-    Task.attempt GotData (getImageTask url_)
-
-
-saveData : String -> Bytes -> Cmd msg
-saveData url data =
-    let
-        maybeFilename =
-            ImageGrabber.fromUrl url
-
-        maybeMimeType =
-            ImageGrabber.mimeType url
-    in
-        case ( maybeFilename, maybeMimeType ) of
-            ( Just filename, Just mimeType ) ->
-                Download.bytes filename mimeType data
-
-            ( _, _ ) ->
-                Cmd.none
